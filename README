@@ -1,1 +1,71 @@
-TLA tierlist
+# TLA Tierlist Utility Scripts
+
+This repository includes helper tooling for working with the MTG Arena "The Last Airbender"
+card data.
+
+## `last_airbender_sync.py`
+
+The `scripts/last_airbender_sync.py` script reads card names from a Google Sheet and
+populates the adjacent column with single-letter rarity codes sourced from Scryfall.
+
+### Requirements
+
+Install the Python dependencies before running the script:
+
+```bash
+pip install google-api-python-client google-auth google-auth-oauthlib requests
+```
+
+### Authentication
+
+The script supports either service account credentials or OAuth client secrets. Set one
+of the following environment variables before running the script:
+
+- `GOOGLE_APPLICATION_CREDENTIALS`: Absolute path to a service account JSON key with
+  access to Google Sheets.
+- `GOOGLE_OAUTH_CLIENT_SECRETS`: Absolute path to an OAuth client secrets file created
+  in Google Cloud Console. The script stores the generated access token at the path
+  specified by `GOOGLE_OAUTH_TOKEN` (defaults to `token.json`).
+
+### Usage
+
+```bash
+python scripts/last_airbender_sync.py \
+  --sheet-url "https://docs.google.com/spreadsheets/d/<spreadsheet-id>/edit" \
+  --worksheet "Sheet1" \
+  --column A \
+  --start-row 2
+```
+
+Key options:
+
+- `--sheet-url`: URL of an existing Google Sheet. If omitted, a new spreadsheet is
+  created and the link is printed to the console.
+- `--worksheet`: Worksheet/tab name that holds the card names (default `Sheet1`).
+- `--column`: Column containing the card names (default `A`).
+- `--start-row`: First row that contains card names (default `2`, skipping a header).
+- `--set-code`: Override the Scryfall set code if you need a different data source.
+- `--dry-run`: Fetch data and print planned updates without modifying the sheet.
+
+### Behavior
+
+1. Authenticate with the Google Sheets API using the configured credentials.
+2. Determine the spreadsheet ID from the provided URL or create a new spreadsheet when
+   no URL is supplied.
+3. Fetch all cards from the Scryfall REST API for the requested set, handling rate limit
+   responses with automatic retries.
+4. Map Scryfall rarities (`mythic`, `rare`, `uncommon`, `common`) to single-letter codes
+   (`M`, `R`, `U`, `C`).
+5. Iterate through rows in the Google Sheet and populate the next column with the mapped
+   rarity letters. Missing cards are reported at the end of the run.
+
+### Error Handling
+
+The script surfaces detailed messages when:
+
+- Google credentials are missing or invalid.
+- Scryfall returns rate limit or server errors (with automatic retries before failing).
+- Cards listed in the sheet cannot be found in the fetched Scryfall data.
+
+Use the `--dry-run` mode to verify updates before allowing the script to modify a
+spreadsheet.
